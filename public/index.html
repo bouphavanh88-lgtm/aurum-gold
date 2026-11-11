@@ -400,6 +400,10 @@ label.f input:focus,label.f select:focus,.composer textarea:focus,.composer .pri
 .cmd-log{margin-top:8px;height:150px;overflow:auto;font:11px/1.45 ui-monospace,monospace;background:rgba(0,0,0,.45);border-radius:8px;padding:6px 8px;border:1px solid rgba(255,255,255,.06)}
 .cl{display:flex;gap:6px}.cl .ct{opacity:.45;flex:none}.cl .cg{flex:none;width:40px;font-weight:700}.cl .cm{flex:1;min-width:0}
 .cl.good .cm{color:#35e0a1}.cl.bad .cm{color:#ff8a9e}
+.agent-btn{display:block;width:100%;margin:0 0 6px;padding:8px 10px;border-radius:10px;border:1px dashed rgba(79,227,255,.45);background:rgba(79,227,255,.06);color:#bfefff;font-size:12.5px;text-align:left}
+.agent-btn.on{border-style:solid;border-color:#4fe3ff;background:rgba(79,227,255,.14);box-shadow:0 0 14px rgba(79,227,255,.25)}
+.agacts{display:grid;gap:4px;margin-top:8px}.aga{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.25);font-size:12.5px}
+.aga>span{width:14px;flex:none;font-weight:700}.aga .ok{color:#35e0a1}.aga .no{color:#ff8a9e}
 .cur{display:inline-block;margin-left:2px;animation:blink 1s steps(2) infinite;color:var(--gold)}@keyframes blink{50%{opacity:0}}
 .dictbar{position:relative;display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;border:1px solid rgba(53,224,161,.45);border-radius:12px;background:rgba(53,224,161,.08);font-size:13px;overflow:hidden}
 .dictbar[hidden]{display:none}
@@ -483,6 +487,7 @@ textarea.bk{width:100%;height:120px;margin-top:8px;font-size:11px;background:rgb
       </div>
     </div>
     <button class="btn pri" id="shotBtn" style="width:100%;margin:6px 0">📷 ສົ່ງຮູບກຣາຟ MT5 ໃຫ້ວິເຄາະ (ກົດແລ້ວເລືອກຮູບ: ວິເຄາະເອງທັນທີ)</button>
+    <button class="agent-btn" id="agentBtn"></button>
     <div class="prow" id="personaRow"></div>
     <div class="strip" id="strip"></div>
     <div class="phase" id="phase">ທີມພ້ອມແລ້ວ. ແນບຮູບກຣາຟ ຫຼື ພິມຄຳຖາມ.</div>
@@ -3292,6 +3297,131 @@ showTab = function(id){ _showTab9(id); if (id === "office") startCmd(); };
 setTimeout(() => { if (!st.clog.length || Date.now() - st.clog[st.clog.length-1].t > 30*60e3) clog("AURUM", `ຫ້ອງບັນຊາການເປີດ · ${marketInfo().closed ? "ຕະຫຼາດປິດ" : "ຕະຫຼາດເປີດ"} · ທີມ 7 ຝ່າຍພ້ອມ`); startCmd(); }, 800);
 
 setInterval(() => { const c = $("cmdClock"); if (c) c.textContent = new Date().toISOString().slice(11,19) + " UTC"; }, 1000);
+
+/* ================= v10: AURUM AI Agent (talks AND acts inside the app) ================= */
+/* The agent may only use the actions below. It never places trades: ATEE presses buttons in MT5 himself. */
+let agentOn = lsGet("gd_agent", false);
+const AGENT_ACTIONS = {
+  set_alert:   {safe:true,  label:a => `ຕັ້ງແຈ້ງເຕືອນລາຄາ ${a.price}${a.note ? " (" + a.note + ")" : ""}`},
+  open_ticket: {safe:true,  label:a => `ເປີດໃບສັ່ງເທຣດ ${a.dir || ""} ${a.entry || ""} SL ${a.sl || "—"} TP ${a.tp || "—"} (ກວດ 12 ຂໍ້)`},
+  show_tab:    {safe:true,  label:a => `ເປີດແຖບ ${a.tab}`},
+  read_plan:   {safe:true,  label:() => "ອ່ານແຜນມື້ນີ້ໃຫ້ຟັງ"},
+  run_analysis:{safe:true,  label:a => "ໃຫ້ທີມ 7 ຝ່າຍວິເຄາະເຕັມ" + (a.question ? ": " + a.question : "")},
+  health:      {safe:true,  label:() => "ກວດລະບົບທັງໝົດ"},
+  set_basis:   {safe:false, label:a => `ປັບລາຄາ MT5 = ${a.mt5_price}`},
+  lock:        {safe:false, label:a => `ພັກເທຣດ ${a.hours} ຊົ່ວໂມງ (ຍົກເລີກກ່ອນເວລາບໍ່ໄດ້)`},
+  journal_add: {safe:false, label:a => `ບັນທຶກໄມ້ ${a.dir || ""} P/L ${a.pnl} ${a.note ? "· " + a.note : ""}`},
+  set_setting: {safe:false, label:a => `ປ່ຽນຕັ້ງຄ່າ ${a.key} = ${a.value}`},
+};
+const AGENT_RULES = `You are AURUM AGENT, the hands-on executive assistant inside ATEE's gold trading app (XAUUSD on IUX MT5, about $1,000, short-trade plan: D1+H1 trend, H1/M15 close back across EMA20, SL about 1x H1 ATR and at most $14.7 at 0.01 lot, TP 1.5R, close within 6 hours, max 3 trades/day, daily loss 3%, weekly 6%).
+You can DO things in the app by returning actions. Only these action types exist:
+- set_alert {price: number in MT5 price, note?: string}
+- open_ticket {dir: "BUY"|"SELL", entry?: number, sl?: number, tp?: number}  (fills the trade ticket; it never places a trade)
+- show_tab {tab: "office"|"chat"|"market"|"guard"|"journal"|"more"|"backtest"|"calc"}
+- read_plan {}   - run_analysis {question?: string}   - health {}
+- set_basis {mt5_price: number}   (ATEE tells you his current MT5 XAUUSD price)
+- lock {hours: 4|24|72}   (self-lock from trading)
+- journal_add {dir: "BUY"|"SELL", pnl: number (USD, loss negative), lot?: number, note?: string}
+- set_setting {key: "capital"|"riskPct"|"dailyLossPct"|"weeklyLossPct", value: number}
+Rules: act only on what ATEE asked or clearly implied; at most 3 actions; never invent prices: use CONTEXT numbers (MT5 prices); refuse any request to trade for him, to remove a stop loss, to raise risk above 2% per trade or to unlock a lock early, and say why in one short sentence; if a trade idea breaks his plan, open no ticket and explain. Never promise profit.
+Reply in natural spoken Lao, short (1-4 sentences), addressed to ATEE, saying what you did or are about to do.
+Return ONLY JSON: {"reply": "Lao", "speechThai": "same in Thai", "actions": [{"type": "...", ...}]}`;
+function agentContext(){
+  let k = null, p = null; try{ k = deskData(); }catch(_){} try{ p = planData(); }catch(_){}
+  const t = todayStats(), g = guardState(), px = mt5Now();
+  return {
+    time_laos: new Date(Date.now() + 7*3600e3).toISOString().slice(0,16).replace("T"," "),
+    price_mt5: isFinite(px) ? +px.toFixed(2) : null, mt5_calibrated: !!basisOff(), market: marketInfo().label || "",
+    setup_score: k ? {score: k.score, status: k.status, dir: k.dir, block: k.block || null, sl: isFinite(k.sl) ? +k.sl.toFixed(1) : null, tp: isFinite(k.tp) ? +k.tp.toFixed(1) : null} : null,
+    plan_today: p ? p.sc.map(s => s.k + ": " + s.t + " → " + s.a).slice(0,3) : null,
+    risk: {trades_today: t.count, pnl_today: +t.pnl.toFixed(2), daily_limit: t.limit, locked: g.lock ? g.title : null},
+    open_position: st.pos && isFinite(num(st.pos.entry)) ? st.pos : null,
+    price_alerts: st.levels.filter(l => !l.triggered).map(l => l.mt5 || l.price),
+    settings: {capital: st.settings.capital, riskPct: st.settings.riskPct, dailyLossPct: st.settings.dailyLossPct, weeklyLossPct: st.settings.weeklyLossPct},
+    latest_news: st.market && st.market.briefingLao ? st.market.briefingLao.slice(0, 400) : null,
+  };
+}
+function agentValid(a){
+  if (!a || !AGENT_ACTIONS[a.type]) return "ບໍ່ຮູ້ຈັກຄຳສັ່ງນີ້";
+  const n = x => isFinite(num(x));
+  if (a.type === "set_alert" && !n(a.price)) return "ລາຄາບໍ່ຖືກ";
+  if (a.type === "set_basis" && (!n(a.mt5_price) || !isFinite(curPrice()) || Math.abs(curPrice() - num(a.mt5_price)) > 120)) return "ລາຄາ MT5 ບໍ່ສົມເຫດສົມຜົນ";
+  if (a.type === "lock" && ![4,24,72].includes(+a.hours)) return "ພັກໄດ້ 4, 24 ຫຼື 72 ຊົ່ວໂມງ";
+  if (a.type === "journal_add" && !n(a.pnl)) return "ບໍ່ມີ P/L";
+  if (a.type === "set_setting"){
+    const lim = {capital:[50, 1e7], riskPct:[0.1, 2], dailyLossPct:[0.5, 6], weeklyLossPct:[1, 12]}[a.key];
+    if (!lim || !n(a.value) || num(a.value) < lim[0] || num(a.value) > lim[1]) return "ຄ່ານີ້ເກີນຂອບເຂດປອດໄພ";
+  }
+  if (a.type === "open_ticket" && !["BUY","SELL"].includes(String(a.dir).toUpperCase())) return "ບໍ່ມີທິດທາງ";
+  return "";
+}
+async function agentDo(a){
+  switch (a.type){
+    case "set_alert": { $("lvlPrice").value = num(a.price); $("lvlNote").value = (a.note || "AURUM Agent").slice(0, 80); $("lvlAdd").click(); return "ຕັ້ງແລ້ວ"; }
+    case "open_ticket": { tkDir = String(a.dir).toUpperCase(); if (isFinite(num(a.entry))) $("tk_entry").value = num(a.entry); else { const p = mt5Now(); if (isFinite(p)) $("tk_entry").value = p.toFixed(1); } if (isFinite(num(a.sl))) $("tk_sl").value = num(a.sl); if (isFinite(num(a.tp))) $("tk_tp").value = num(a.tp); renderTicket(); showTab("ticket"); return "ເປີດແລ້ວ: ກວດ 12 ຂໍ້ກ່ອນ"; }
+    case "show_tab": { showTab(a.tab === "chat" ? "chat" : a.tab); return "ເປີດແລ້ວ"; }
+    case "read_plan": { const b = $("planSpeak") || $("planRead"); if (b) b.click(); return "ກຳລັງອ່ານ"; }
+    case "run_analysis": { setTimeout(() => { $("q").value = a.question || "ວິເຄາະທອງຕອນນີ້ຕາມແຜນເທຣດສັ້ນ"; forceFull = true; send(); }, 300); return "ສົ່ງໃຫ້ທີມແລ້ວ"; }
+    case "health": { openHealth(); return "ເປີດແລ້ວ"; }
+    case "set_basis": { setBasis(curPrice() - num(a.mt5_price), "mt5"); return "ປັບແລ້ວ"; }
+    case "lock": { st.lock.until = Date.now() + (+a.hours) * 3600e3; st.lock.why = `AURUM Agent: ພັກ ${a.hours} ຊົ່ວໂມງ`; saveLock(); return "ລັອກແລ້ວ"; }
+    case "journal_add": {
+      const e = {id: "j" + Date.now().toString(36), ts: Date.now(), date: todayStr(), dir: String(a.dir || "").toUpperCase(), lot: num(a.lot) || 0.01, pnl: num(a.pnl), note: (a.note || "ບັນທຶກຜ່ານ AURUM Agent").slice(0, 200), followed: true};
+      st.journal = [e, ...st.journal]; lsSet("gd_journal", st.journal);
+      if (db){ try{ await db.collection("journal").doc(e.id).set(e); }catch(_){} }
+      renderAll(); return "ບັນທຶກແລ້ວ";
+    }
+    case "set_setting": { st.settings[a.key] = num(a.value); lsSet("gd_settings", st.settings); try{ fillSettings(); }catch(_){} saveSettings(); renderAll(); return "ປ່ຽນແລ້ວ"; }
+  }
+  return "";
+}
+async function agentRun(q){
+  const el = addMsg("a", `<div class="who" style="color:#4fe3ff">🤖 AURUM Agent</div><span class="cur">▍</span>`);
+  st.busy = true; setOrb("thinking");
+  try{
+    const turns = [{role:"user", content: AGENT_RULES + "\n\nCONTEXT:\n" + JSON.stringify(agentContext()) + "\n\nATEE SAID: " + q}];
+    const r = await sample.json(turns, {modelTier:"quick", cache:false, onText: ({text}) => { const m = String(text || "").match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)/); if (m){ let t = m[1]; try{ t = JSON.parse('"' + t.replace(/\\$/, "") + '"'); }catch(_){} el.innerHTML = `<div class="who" style="color:#4fe3ff">🤖 AURUM Agent</div>${esc(t)}<span class="cur">▍</span>`; scrollMsgs(); } }});
+    const acts = (Array.isArray(r.actions) ? r.actions : []).slice(0, 3);
+    el.innerHTML = `<div class="who" style="color:#4fe3ff">🤖 AURUM Agent</div>${esc(r.reply || "")}<div class="agacts"></div>`;
+    const box = el.querySelector(".agacts");
+    for (const a of acts){
+      const bad = agentValid(a), meta = AGENT_ACTIONS[a.type];
+      const row = document.createElement("div"); row.className = "aga";
+      if (bad){ row.innerHTML = `<span class="no">✕</span><div>${esc(a.type)}: ${esc(bad)}</div>`; box.appendChild(row); continue; }
+      if (meta.safe){ const res = await agentDo(a); row.innerHTML = `<span class="ok">✓</span><div>${esc(meta.label(a))} · <b>${esc(res)}</b></div>`; try{ clog("HEAD", "Agent: " + meta.label(a), "good"); }catch(_){} }
+      else {
+        row.innerHTML = `<span>?</span><div>${esc(meta.label(a))}<div class="acts" style="margin-top:4px"><button class="btn pri" data-y>ຢືນຢັນ</button><button class="btn" data-n>ບໍ່</button></div></div>`;
+        row.querySelector("[data-y]").onclick = async () => { const res = await agentDo(a); row.innerHTML = `<span class="ok">✓</span><div>${esc(meta.label(a))} · <b>${esc(res)}</b></div>`; try{ clog("HEAD", "Agent: " + meta.label(a), "good"); }catch(_){} };
+        row.querySelector("[data-n]").onclick = () => { row.innerHTML = `<span class="no">✕</span><div>${esc(meta.label(a))} · ຍົກເລີກ</div>`; };
+      }
+      box.appendChild(row);
+    }
+    scrollMsgs();
+    const pv = hasTTS && ttsOn ? pickVoice() : null;
+    if (pv) sayNow(pv.kind === "lo" ? r.reply : (r.speechThai || r.reply), pv.kind);
+  }catch(e){
+    el.innerHTML = `<div class="who" style="color:#4fe3ff">🤖 AURUM Agent</div><span class="no">${esc((ERR[e && e.code] || (() => "Agent ຂັດຂ້ອງ: ລອງອີກເທື່ອ"))())}</span>`;
+  }finally{ st.busy = false; setOrb("idle"); }
+}
+function renderAgentBtn(){
+  const b = $("agentBtn"); if (!b) return;
+  b.classList.toggle("on", agentOn);
+  b.innerHTML = agentOn ? "🤖 AI Agent: <b>ເປີດ</b> · ສັ່ງງານໄດ້ ເຊັ່ນ \"ຕັ້ງເຕືອນ 4050\", \"ພັກ 24 ຊົ່ວໂມງ\"" : "🤖 AI Agent: ປິດ · ກົດເພື່ອໃຫ້ AURUM ລົງມືເຮັດແທນ";
+}
+$("agentBtn").addEventListener("pointerdown", e => { e.preventDefault(); agentToggle(); });
+$("agentBtn").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); agentToggle(); } });
+function agentToggle(){ agentOn = !agentOn; lsSet("gd_agent", agentOn); renderAgentBtn(); $("coreSt").textContent = agentOn ? "AI Agent ເປີດ: ສັ່ງງານເປັນຄຳເວົ້າໄດ້ເລີຍ" : "ກັບສູ່ໂໝດລົມປົກກະຕິ"; }
+const _send10 = send;
+send = async function(){
+  const q = $("q").value.trim();
+  if (agentOn && q && !st.img && !st.busy && !forceFull){
+    addMsg("u", esc(q)); $("q").value = ""; try{ clog("AURUM", "Agent ຮັບຄຳສັ່ງ: " + q.slice(0, 60)); cbump("talks"); }catch(_){}
+    return agentRun(q);
+  }
+  return _send10.apply(this, arguments);
+};
+renderAgentBtn();
+
 /* ---------- render all ---------- */
 function safe(fn, name){ try{ fn(); }catch(e){ console.error("render " + name, e); try{ (window.__errs = window.__errs || []).push({t: Date.now(), m: name + ": " + String(e && e.message || e).slice(0, 180)}); }catch(_){} } }
 function renderAll(){ [[renderTiles,"tiles"],[renderDepts,"depts"],[renderCheck,"check"],[renderJournal,"journal"],[renderMarket,"market"],[renderLive,"live"],[renderPos,"pos"],[renderDisc,"disc"],[renderSignal,"signal"],[renderAlerts,"alerts"],[renderExec,"exec"],[renderHabits,"habits"],[renderPlan,"plan"],[renderLevels,"levels"],[renderEquity,"equity"],[renderPersonas,"personas"],[renderBasis,"basis"],[renderLock,"lock"],[renderDesk,"desk"],[renderGrow,"grow"],[renderMoreStatus,"more"],[renderCmd,"cmd"]].forEach(([f,n]) => safe(f, n)); }
