@@ -774,7 +774,7 @@ textarea.bk{width:100%;height:120px;margin-top:8px;font-size:11px;background:rgb
     <h2 class="sec">ເທຣດ</h2>
     <div class="more-grid">
       <button data-go="ticket"><b>🎫 ໃບສັ່ງເທຣດ</b><span>ກວດ 12 ຂໍ້ກ່ອນເຂົ້າ</span></button>
-      <button data-go="calc"><b>🧮 ຄຳນວນ Lot</b><span>ແລະຕັ້ງຄ່າບັນຊີ</span></button>
+      <button data-go="calc"><b>⚙ ຕັ້ງຄ່າກົດເກນ</b><span>R:R, ກົດລັອກ, ຊື່</span></button>
       <button data-go="check"><b>✅ Checklist</b><span>ກວດກ່ອນກົດເຂົ້າ</span></button>
       <button id="lockBtn"><b>⏸ ພັກເທຣດ</b><span>ລັອກຕົວເອງ, ຍົກເລີກກ່ອນເວລາບໍ່ໄດ້</span></button>
     </div>
@@ -783,8 +783,6 @@ textarea.bk{width:100%;height:120px;margin-top:8px;font-size:11px;background:rgb
       <button data-go="journal"><b>📒 ບັນທຶກ</b><span>ທຸກໄມ້, ອາລົມ, ເສັ້ນທຶນ</span></button>
       <button data-go="backtest"><b>🧪 Backtest</b><span>ທົດສອບກົດເກນກັບຂໍ້ມູນຍ້ອນຫຼັງ</span></button>
     </div>
-    <h2 class="sec">ແຜນສ້າງພອດ <small>ເລື່ອນຂັ້ນເມື່ອຕົວເລກພິສູດ</small></h2>
-    <div class="card" id="growCard"></div>
     <h2 class="sec">ລະບົບ</h2>
     <div class="more-grid">
       <button id="healthBtn"><b>🩺 ກວດລະບົບທັງໝົດ</b><span>ຮູ້ທັນທີວ່າສ່ວນໃດຂັດຂ້ອງ</span></button>
@@ -1234,16 +1232,17 @@ function hasTTSGlobal(){ return "speechSynthesis" in window; }
 
 const RULES = `You are the analysis team inside a personal gold-trading app. The user lives in Laos (UTC+7), trades ONLY XAUUSD (gold) on IUX Markets with MetaTrader 5, and wants disciplined, professional, emotion-free analysis. Write every text field in Lao language (ພາສາລາວ), plain and clear; keep trading terms like BUY, SELL, SL, TP, R:R, EMA, RSI in English.
 
-The team has 7 departments: data (prices, timeframes, session, spread), technical (trend, support/resistance, EMA, RSI, MACD, candlestick patterns), news (economic calendar: NFP, CPI, FOMC, Fed speakers; DXY and US yields), risk (lot size, SL, TP, R:R, daily loss limit), psych (FOMO, revenge trading, greed, fear, discipline), decision (the head trader who decides BUY / SELL / WAIT), journal (reviews the user's past trades).
+The team has 7 departments: data (prices, timeframes, session, spread), technical (trend, support/resistance, EMA, RSI, MACD, candlestick patterns), news (economic calendar: NFP, CPI, FOMC, Fed speakers; DXY and US yields), risk (SL, TP, R:R, invalidation; never lot size or money), psych (FOMO, revenge trading, greed, fear, discipline), decision (the head trader who decides BUY / SELL / WAIT), journal (reviews the user's past trades).
 
 Hard rules:
+0. ANALYSIS-ONLY MODE: you are a specialist gold analyst, not a money manager. Never give lot sizes, account balance, dollar amounts, dollar risk, position sizing, deposit or capital advice; ATEE decides size himself in MT5. Every trading answer must end with a clear call: BUY or SELL with a conditional entry, SL and TP in MT5 prices, or WAIT naming which side is favoured and exactly what would trigger it. Use CONTEXT.mtf first: spot XAUUSD candles in MT5 prices for M15, H1, H4 and D1 with EMA20/50/200, RSI14, ATR14, swing highs/lows and the last candles. Check that the timeframes agree (D1/H4 direction, H1 setup, M15 trigger) and say which ones do. State the confidence honestly; never promise profit.
 1. CONTEXT.live_market holds live data from the user's connectors: gold futures quote (FMP, refreshed every few minutes), gold spot (Alpha Vantage) and daily levels (pivot, R1, S1, previous day range, 20-day range, daily ATR, D1 trend). Use these numbers for levels and context and say whether they are futures or spot. You have no access to the user's account. CONTEXT.system_signal_D1 is the app's rule-based D1 view (trend from EMA50/200, value zone, fresh signal). If no chart image is attached, still analyse from live_market and system_signal_D1: give the D1 bias, the zones, and a conditional intraday plan (for example: BUY only if an H1 candle closes back above X; SL below Y; TP Z) rather than an immediate market order, and invite an H1 screenshot to confirm. CONTEXT.market_snapshot was gathered from reputable news sources (Reuters, CNBC, Kitco, FXStreet, Investing.com, BLS) by the team's news run; it says how many minutes old it is. Use it for price context, levels, drivers, news and the event calendar, and say how old it is when it matters. For entries, prefer the price the user typed from MT5 or the chart image. Never invent a price, an indicator value or a news event that is not in the context or the image. If there is no chart image and no price, data and technical must say so and the plan (if any) is WAIT with a request for an MT5 screenshot of H4, H1 and M15.
 1b. Prices: the user trades MT5 spot XAUUSD on IUX. CONTEXT.mt5 gives the offset between FMP futures and his MT5 price and the current price in MT5 terms; every price you give him (entry, SL, TP, levels) must be in MT5 terms. A screenshot from his MT5 is already in MT5 prices: use its scale directly.
-1c. His plan (CONTEXT.trade_plan): short trades only. Direction from D1 and H1 agreeing; enter when an H1 (or M15) candle closes back across EMA20 in the trend direction; SL beyond the nearest swing, about 1x H1 ATR; TP 1.5R; close within 6 hours; 0.01 lot; if the SL must be wider than CONTEXT.trade_plan.max_sl_usd, the answer is WAIT/skip. Fit every plan to these rules.
+1c. His plan (CONTEXT.trade_plan): short trades only. Direction from D1 and H1 agreeing; enter when an H1 (or M15) candle closes back across EMA20 in the trend direction; SL beyond the nearest swing, about 1x H1 ATR; TP 1.5R; close within 6 hours; if the SL must be more than CONTEXT.trade_plan.max_sl_distance away in price, the answer is WAIT/skip. Fit every plan to these rules.
 2. When a chart image is attached, read it carefully: symbol, timeframe, trend, swing highs and lows, support and resistance, visible indicators, candlestick patterns. Every price level in the plan must come from what is visible on the chart or the typed price. If the image is unclear or not a gold chart, say so.
 3. News: use market_snapshot.events and news. If a high-impact event is within 30 minutes (before or after), the decision is WAIT. If the snapshot is older than 120 minutes or missing, say so and tell the user to confirm on Forex Factory.
 3b. Open position: if CONTEXT.open_position exists, manage it first: price at or beyond SL means EXIT now, no exceptions; at +1R suggest moving SL to entry; never suggest moving SL further away or adding to a loser. The user's known weakness is refusing to cut losses: be kind, firm and specific.
-4. Risk: risk per trade is settings.riskPct % of capital; R:R must be at least settings.minRR. If today.stop is true, decision must be WAIT and tell the user to stop trading today. SL must sit beyond a real structure level, not arbitrarily tight; gold moves fast.
+4. Risk: R:R must be at least settings.minRR; talk only about price distances (SL, TP, R:R), never money. If today.stop is true, decision must be WAIT and tell the user to stop trading today. SL must sit beyond a real structure level, not arbitrarily tight; gold moves fast.
 5. Psych: look for FOMO, revenge, greed or fear in the user's words, and losing streaks or bad moods in the journal. If present, decision leans WAIT and psych explains calmly and kindly.
 6. Decision: BUY or SELL only when the setup is clear, R:R meets the minimum, no high-impact news within 30 minutes, and emotions are fine. Otherwise WAIT. Selectivity is the edge. Never promise profit or certainty. When you give a BUY/SELL plan, add one short sentence that this is analysis, not financial advice, and the user decides and presses the button in MT5 themselves.
 7. For general questions (education, reviewing the journal, psychology), answer helpfully; set plan to null; departments that are not involved write a very short line.
@@ -1260,7 +1259,7 @@ function buildContext(price, hasImg){
   return {
     now_local: now.toLocaleString("en-GB",{weekday:"long",year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}),
     market: {sessions: m.sessions, closed: m.closed, nfp_today_hint: m.nfpToday ? ("Usually NFP today at "+m.nfpTime+" local time") : "Not first Friday"},
-    settings: st.settings,
+    settings: {minRR: st.settings.minRR, style: st.settings.style},
     typed_price: price || null,
     chart_attached: hasImg,
     today: {trades: t.count, pnl_usd: +t.pnl.toFixed(2), daily_loss_limit_usd: +t.limit.toFixed(2), stop: t.stop},
@@ -1268,7 +1267,8 @@ function buildContext(price, hasImg){
     journal_stats: {trades: a.n, win_rate_pct: a.wr, net_usd: +a.net.toFixed(2), current_loss_streak: a.lossStreak},
     live_market: liveContext(),
     mt5: (() => { const B = basisOff(), p = curPrice(); return {futures_minus_mt5: B || null, price_now_mt5: B && isFinite(p) ? +(p - B).toFixed(2) : null, note: B ? "Convert any futures level to MT5 by subtracting futures_minus_mt5." : "Not calibrated: levels are futures prices, about $8-40 above MT5."}; })(),
-    trade_plan: {style: "short trades", tp_r: 1.5, max_hold_hours: 6, lot: 0.01, max_sl_usd: +(((st.settings.capital * 0.015) / (0.01 * st.settings.contract)) - (num(st.settings.spread) || 0)).toFixed(1), max_trades_day: 3},
+    trade_plan: {style: "short trades", tp_r: 1.5, max_hold_hours: 6, max_sl_distance: 15, max_trades_day: 3},
+    mtf: (() => { try{ return mtfContext(); }catch(_){ return null; } })(),
     trading_habits_from_mt5: habitSummary(),
     aurum_recent_alerts: (st.alerts||[]).slice(-5),
     world_news: st.market && st.market.world ? st.market.world.slice(0,6).map(w => ({region:w.region, title:w.title, goldImpact:w.goldImpact, time:w.time})) : null,
@@ -1362,8 +1362,8 @@ function planCard(p){
     rows = row("Entry", e.toFixed(2)) + row("Stop Loss", sl.toFixed(2), "down") +
       (isFinite(tp1) ? row("TP1", tp1.toFixed(2), "up") : "") + (isFinite(tp2) ? row("TP2", tp2.toFixed(2), "up") : "") +
       (isFinite(rr) ? row("R:R (TP1)", "1 : "+rr.toFixed(2), rr >= st.settings.minRR ? "up" : "warn") : "") +
-      (L ? row(`Lot (ສ່ຽງ ${st.settings.riskPct}%)`, L.lot >= 0.01 ? L.lot.toFixed(2)+" → ເສຍສູງສຸດ "+usd(L.actual) : `ຕ້ອງ ${L.raw.toFixed(3)} (ຕ່ຳກວ່າ 0.01)`, L.lot >= 0.01 ? "" : "warn") : "");
-    if (L && L.lot < 0.01){ const minRisk = 0.01 * L.dist * st.settings.contract; note += `<div class="note warn">0.01 lot ຈະສ່ຽງ ${usd(minRisk)} (${(minRisk/st.settings.capital*100).toFixed(1)}% ຂອງທຶນ), ເກີນກົດ ${st.settings.riskPct}%. ຫາຈຸດເຂົ້າທີ່ SL ແຄບກວ່າ ຫຼືຂ້າມໄມ້ນີ້.</div>`; }
+      ""
+    if (false && L && L.lot < 0.01){ const minRisk = 0.01 * L.dist * st.settings.contract; note += `<div class="note warn">0.01 lot ຈະສ່ຽງ ${usd(minRisk)} (${(minRisk/st.settings.capital*100).toFixed(1)}% ຂອງທຶນ), ເກີນກົດ ${st.settings.riskPct}%. ຫາຈຸດເຂົ້າທີ່ SL ແຄບກວ່າ ຫຼືຂ້າມໄມ້ນີ້.</div>`; }
     if (!consistent) note += `<div class="note warn">ຝ່າຍຄຸມຄວາມສ່ຽງ: ລະດັບ SL / TP ບໍ່ສອດຄ່ອງກັບທິດທາງ. ຢ່າໃຊ້ແຜນນີ້.</div>`;
     else if (isFinite(rr) && rr < st.settings.minRR) note += `<div class="note warn">R:R ຕ່ຳກວ່າ 1:${st.settings.minRR}. ຝ່າຍຄຸມຄວາມສ່ຽງບໍ່ອະນຸມັດ.</div>`;
     if (todayStats().stop) note += `<div class="note down">ມື້ນີ້ເສຍຄົບກຳນົດແລ້ວ: ບໍ່ເທຣດ.</div>`;
@@ -1985,7 +1985,8 @@ function renderChart(){
   levelsFromBars();
   const live = chTF === "LIVE";
   cSeries.applyOptions({visible: !live}); Object.values(emaS).forEach(s => s.applyOptions({visible: !live})); areaS.applyOptions({visible: live});
-  chart.applyOptions({timeScale: {timeVisible: live, secondsVisible: false}});
+  const INTRA = ["15m","1h","4h"].includes(chTF);
+  chart.applyOptions({timeScale: {timeVisible: live || INTRA, secondsVisible: false}});
   pLines.forEach(p => { try{ (live ? areaS : cSeries).removePriceLine(p); }catch(e){ try{ (live ? cSeries : areaS).removePriceLine(p); }catch(_){} } }); pLines = [];
   const B = (typeof basisOff === "function") ? basisOff() : 0;   // show everything in the user's MT5 (IUX) prices
   const d = B && st.live.daily ? shiftD(st.live.daily, B) : st.live.daily;
@@ -1999,18 +2000,18 @@ function renderChart(){
     if (!chFitted.LIVE && pts.length > 1){ chart.timeScale().fitContent(); chFitted.LIVE = true; }
     return;
   }
-  let bars = dailyBars();
+  let bars = INTRA ? ((st.live.intra && st.live.intra[chTF]) || []).map(a => ({t:a[0]*1000, o:a[1], h:a[2], l:a[3], c:a[4]})) : dailyBars();
   $("chEmpty").hidden = bars.length > 0;
-  $("chEmpty").textContent = "ລໍຖ້າຂໍ້ມູນຈາກ FMP…";
+  $("chEmpty").textContent = INTRA ? "ກຳລັງໂຫຼດກຣາຟ " + chTF + "…" : "ລໍຖ້າຂໍ້ມູນລາຄາ…";
   if (!bars.length){ cSeries.setData([]); return; }
   areaS.setData([]);
   if (chTF === "W1") bars = weeklyBars(bars);
-  const T = b => Math.floor(b.t/1000);
+  const T = b => Math.floor(b.t/1000) + (INTRA ? TZ : 0);
   if (B) bars = bars.map(b => ({...b, o:b.o - B, h:b.h - B, l:b.l - B, c:b.c - B}));
   cSeries.setData(bars.map(b => ({time:T(b), open:b.o, high:b.h, low:b.l, close:b.c})));
   const C = bars.map(b => b.c);
   [["e20",20],["e50",50],["e200",200]].forEach(([k,n]) => { const e = ema(C, n); emaS[k].setData(bars.map((b,i) => isFinite(e[i]) ? {time:T(b), value:e[i]} : null).filter(Boolean)); });
-  if (d && chTF === "D1"){
+  if (d && (chTF === "D1" || INTRA)){
     [["Pivot", d.p, "#8f99ae"], ["R1", d.r1, "#e8636b"], ["S1", d.s1, "#3fbf8a"]].forEach(([t,p,c]) =>
       pLines.push(cSeries.createPriceLine({price:p, color:c, lineWidth:1, lineStyle:2, axisLabelVisible:true, title:t})));
   }
@@ -2019,6 +2020,7 @@ function renderChart(){
     cSeries.setMarkers(sig.map(s => ({time:T(bars[s.i]), position: s.dir>0 ? "belowBar" : "aboveBar", color: s.dir>0 ? "#3fbf8a" : "#e8636b", shape: s.dir>0 ? "arrowUp" : "arrowDown"})).slice(-12));
   } else cSeries.setMarkers([]);
   if (!chFitted[chTF]){ const n = bars.length, tf = chTF; chFitted[tf] = true; requestAnimationFrame(() => chart.timeScale().setVisibleLogicalRange({from: Math.max(0, n - (tf === "D1" ? 90 : 60)), to: n + 2})); }
+  if (INTRA){ const n = bars.length; if (!chFitted["i" + chTF]){ chFitted["i" + chTF] = true; requestAnimationFrame(() => chart.timeScale().setVisibleLogicalRange({from: Math.max(0, n - 120), to: n + 3})); } }
 }
 function systemSignals(bars){
   const C = bars.map(b => b.c), eT = ema(C,20), eF = ema(C,50), eS = ema(C,200), out = [];
@@ -2065,7 +2067,7 @@ function renderSignal(){
     const L = v.plan.lot, okLot = L && L.lot >= 0.01;
     cls = v.plan.dir > 0 ? "hold" : "exit"; head = `ສັນຍານລະບົບ D1: ${v.plan.dir > 0 ? "BUY" : "SELL"}`;
     body = `ແທ່ງວານນີ້ປິດກັບ${v.plan.dir>0?"ເໜືອ":"ລຸ່ມ"} EMA20 ຕາມທິດທາງຫຼັກ. Entry ~${f1(v.plan.entry)} · SL ${f1(v.plan.sl)} · TP ${f1(v.plan.tp)} (1:2). ` +
-      (okLot ? `Lot ${L.lot.toFixed(2)} (ສ່ຽງ ${usd(L.actual)}).` : `SL ກວ້າງ $${f1(v.plan.dist)}: ທຶນຕອນນີ້ໃຊ້ lot ຕ່ຳກວ່າ 0.01 ບໍ່ໄດ້. ໃຫ້ຫາຈຸດເຂົ້າໃນ H1 ທີ່ SL ແຄບກວ່າ ຕາມທິດທາງນີ້.`);
+      `SL ຂອງສັນຍານ D1 ຫ່າງ $${f1(v.plan.dist)}: ສຳລັບເທຣດສັ້ນ ໃຫ້ຫາຈຸດເຂົ້າໃນ H1/M15 ຕາມທິດທາງນີ້.`;
   } else {
     cls = "manage"; head = `ລໍຖ້າ: ທິດທາງຫຼັກ D1 ${T}`;
     body = v.trend === "flat" ? "EMA50 ແລະ EMA200 ບໍ່ຢືນຢັນທິດທາງ. ມືອາຊີບລໍຖ້າ ຫຼືເທຣດນ້ອຍລົງ." :
@@ -2197,7 +2199,8 @@ function talkUI(){ const b = $("talkBtn"); b.setAttribute("aria-pressed", talkMo
 $("talkBtn").onclick = () => { talkMode = !talkMode; lsSet("gd_talk", talkMode); talkUI(); $("coreSt").textContent = talkMode ? "ລົມກັບ AURUM ໄດ້ເລີຍ: ຕອບສັ້ນ ແລະເປັນສຽງ" : "ໂໝດວິເຄາະເຕັມ: ທຸກຄຳຖາມໄປຫາ 7 ພະແນກ"; };
 talkUI();
 function speakNow(res){ const was = ttsOn; ttsOn = true; speak(res); ttsOn = was; }
-const TALK_RULES = `You are AURUM, the user's personal AI assistant, talking with him by voice in real time like a trusted friend and capable personal assistant (never mention films or fictional characters). His first priority is gold trading: he lives in Laos, trades only XAUUSD on IUX Markets / MT5, risks 1% per trade with R:R at least 1:2, and knows he trades emotionally and hates cutting losses, so on trading be warm but firm about discipline. But you are a general assistant too: answer anything he asks (daily life, health, money, business, technology, language, learning, news, ideas, writing, small talk) helpfully and honestly, like a smart friend would.
+const TALK_RULES = `ANALYSIS-ONLY MODE: never talk about lot size, account balance, money amounts or position sizing. If ATEE asks whether to buy or sell, where to enter, or for a signal, set ###FULL### yes so the full team analyses with multi-timeframe data.
+You are AURUM, the user's personal AI assistant, talking with him by voice in real time like a trusted friend and capable personal assistant (never mention films or fictional characters). His first priority is gold trading: he lives in Laos, trades only XAUUSD on IUX Markets / MT5, risks 1% per trade with R:R at least 1:2, and knows he trades emotionally and hates cutting losses, so on trading be warm but firm about discipline. But you are a general assistant too: answer anything he asks (daily life, health, money, business, technology, language, learning, news, ideas, writing, small talk) helpfully and honestly, like a smart friend would.
 How to talk: natural spoken Lao, warm and relaxed, call him "ເຈົ້າ". Match the moment: one sentence for small talk, up to 5 sentences when he needs an explanation. No lists, no markdown, numbers as plain digits. Ask a short follow-up question when it helps the conversation flow. Remember what he said earlier in this conversation.
 Be a genius personal advisor who thinks ahead for him: when it helps, end with one proactive recommendation or the next step he should take (for trading, point him to the daily if-then plan, the trade ticket, or a price alert). Be honest about uncertainty; never promise profits.
 Facts: for gold prices, levels, signals and market news use only CONTEXT and say how fresh it is when it matters. For other topics use your general knowledge; you cannot browse the web, so for very recent events outside CONTEXT say you may not have the latest and suggest checking. Never invent numbers, quotes or events. For medical, legal or financial decisions give helpful information and suggest a professional when it matters.
@@ -2572,7 +2575,7 @@ function renderTicket(){
     {ok: dirOk, t:"SL ຢູ່ຖືກທາງ", d: dirOk ? `ຫ່າງ Entry $${dist.toFixed(1)}` : (tkDir === "BUY" ? "BUY: SL ຕ້ອງຕ່ຳກວ່າ Entry" : "SELL: SL ຕ້ອງສູງກວ່າ Entry")},
     {ok: !!v && v.trend !== "flat" && ((v.trend === "up") === (tkDir === "BUY")), t:"ຕາມທິດທາງຫຼັກ D1", d: v ? `D1 ${v.trend === "up" ? "ຂາຂຶ້ນ" : v.trend === "down" ? "ຂາລົງ" : "ບໍ່ຊັດ"}` : "ບໍ່ມີຂໍ້ມູນ", soft: true},
     {ok: isFinite(rr) && rr >= st.settings.minRR - 1e-9, t:`R:R ຢ່າງໜ້ອຍ 1:${st.settings.minRR}`, d: isFinite(rr) ? `1 : ${rr.toFixed(2)}` : "ໃສ່ TP"},
-    {ok: !!L && L.lot >= 0.01, t:`Lot ພໍດີກັບຄວາມສ່ຽງ ${st.settings.riskPct}%`, d: L ? (L.lot >= 0.01 ? `${L.lot.toFixed(2)} lot · ເສຍສູງສຸດ ${usd(L.actual)}${L.minLot ? " (lot ນ້ອຍສຸດ, ບໍ່ເກີນ 1.5%)" : ""}` : `ຕ້ອງການ ${L.raw.toFixed(3)} lot (ຕ່ຳກວ່າ 0.01)`) : "—"},
+    {ok: isFinite(dist) && dist > 0 && dist <= 15, t:"SL ບໍ່ຫ່າງເກີນ $15 (ແຜນເທຣດສັ້ນ)", d: isFinite(dist) && dist > 0 ? `SL ຫ່າງ $${dist.toFixed(1)}` : "—"},
     {ok: !(ev && Math.abs(ev.ms - Date.now()) < 30*60e3), t:"ບໍ່ມີຂ່າວແຮງ ±30 ນາທີ", d: ev ? `${ev.title} · ${fmtLocal(ev.timeUTC)}` : "ບໍ່ມີ"},
     {ok: !t.stop && t.count < 3, t:"ຍັງຢູ່ໃນກຳນົດຂອງມື້", d:`${t.count}/3 ໄມ້ · ${usd(t.pnl)}`},
     {ok: !m.closed, t:"ຕະຫຼາດເປີດຢູ່", d: m.closed ? "ຕະຫຼາດປິດ: ກົດເທຣດບໍ່ໄດ້" : (m.label || "—")},
@@ -2582,7 +2585,7 @@ function renderTicket(){
   ];
   const hardFail = checks.filter(c => !c.ok && !c.soft), softFail = checks.filter(c => !c.ok && c.soft);
   const approved = !hardFail.length;
-  const order = `${tkDir} XAUUSD ${L && L.lot >= 0.01 ? L.lot.toFixed(2) : "—"} lot · Entry ${e.toFixed(2)} · SL ${sl.toFixed(2)} · TP ${isFinite(tp) ? tp.toFixed(2) : "—"} · ປິດເອງຖ້າເກີນ 6 ຊົ່ວໂມງ`;
+  const order = `${tkDir} XAUUSD · Entry ${e.toFixed(2)} · SL ${sl.toFixed(2)} · TP ${isFinite(tp) ? tp.toFixed(2) : "—"} · ປິດເອງຖ້າເກີນ 6 ຊົ່ວໂມງ`;
   out.innerHTML = `
     <div class="checks">${checks.map(c => `<div class="ckr ${c.ok ? "ok" : c.soft ? "soft" : "no"}"><span>${c.ok ? "✓" : c.soft ? "!" : "✗"}</span><div><b>${esc(c.t)}</b><div class="small">${esc(c.d)}</div></div></div>`).join("")}</div>
     <div class="verdict ${approved ? (softFail.length ? "manage" : "hold") : "exit"}" style="margin-top:10px"><b>${approved ? (softFail.length ? "ອະນຸມັດແບບລະວັງ" : "ອະນຸມັດ") : "ບໍ່ອະນຸມັດ"}</b>${approved ? (softFail.length ? "ຜ່ານກົດຫຼັກ ແຕ່ " + softFail.map(c => c.t).join(", ") + " ບໍ່ດີ: ພິຈາລະນາຫຼຸດ lot ເຄິ່ງໜຶ່ງ." : "ຜ່ານທຸກເງື່ອນໄຂ. ເຂົ້າຕາມຄຳສັ່ງຂ້າງລຸ່ມ ແລະຢ່າຍ້າຍ SL.") : "ບໍ່ຜ່ານ: " + hardFail.map(c => c.t).join(", ") + ". ມືອາຊີບຂ້າມໄມ້ນີ້."}</div>
@@ -2636,7 +2639,7 @@ function renderPlan(){
   el.innerHTML = `<div class="small">ແຜນທີ່ວາງໄວ້ກ່ອນ ດີກວ່າການຕັດສິນໃຈຕອນເຫັນລາຄາແລ່ນ · ${basisOff() ? "<b>ລາຄາ MT5</b>" : "<span class=\"warn\">ລາຄາ futures: ປັບ MT5 ໃນແຖບຕະຫຼາດ</span>"}</div>
     <div class="lv" style="margin-top:6px"><span class="r">R1 ${p.d.r1.toFixed(0)}</span><span>Pivot ${p.d.p.toFixed(0)}</span><span class="s">S1 ${p.d.s1.toFixed(0)}</span><span>EMA20 ${p.v.e20.toFixed(0)}</span><span>ມື້ກ່ອນ ${p.d.pl.toFixed(0)}–${p.d.ph.toFixed(0)}</span></div>
     <div class="dec">${p.sc.map(s => `<div class="d"><span class="n">${s.k}</span><div class="t">${esc(s.t)}</div><div class="w"><b style="color:${s.lv === "act" ? "var(--up)" : s.lv === "stop" ? "var(--down)" : "var(--warn)"}">→ ${esc(s.a)}</b></div></div>`).join("")}</div>
-    ${(() => { const h1 = p.d.atr / 5.5, cap = (st.settings.capital * 0.015) / (0.01 * st.settings.contract) - (num(st.settings.spread) || 0); return `<div class="card" style="margin-top:10px;padding:10px"><b>ແຜນເທຣດສັ້ນ (ເກັບກຳໄລໄວ)</b><div class="small">ເຂົ້າ: ແທ່ງ H1 ປິດກັບຂ້າມ EMA20 ຕາມ trend · SL ≈ $${h1.toFixed(0)} (1×ATR H1 ປະມານ) · TP 1.5R ≈ $${(h1*1.5).toFixed(0)} · ຖືບໍ່ເກີນ 6 ຊົ່ວໂມງ · 0.01 lot ໄດ້ຖ້າ SL ≤ $${cap.toFixed(1)}, ກວ້າງກວ່ານັ້ນ = ຂ້າມ</div></div>`; })()}
+    ${(() => { const h1 = p.d.atr / 5.5, cap = (st.settings.capital * 0.015) / (0.01 * st.settings.contract) - (num(st.settings.spread) || 0); return `<div class="card" style="margin-top:10px;padding:10px"><b>ແຜນເທຣດສັ້ນ (ເກັບກຳໄລໄວ)</b><div class="small">ເຂົ້າ: ແທ່ງ H1 ປິດກັບຂ້າມ EMA20 ຕາມ trend · SL ≈ $${h1.toFixed(0)} (1×ATR H1 ປະມານ) · TP 1.5R ≈ $${(h1*1.5).toFixed(0)} · ຖືບໍ່ເກີນ 6 ຊົ່ວໂມງ · SL ຫ່າງເກີນ $${cap.toFixed(1)} = ຂ້າມ</div></div>`; })()}
     <div class="small" style="margin-top:10px">ງົບຄວາມສ່ຽງເຫຼືອມື້ນີ້: <b>${usd(p.budget)}</b> · ໄມ້ທີ່ເຫຼືອ: <b>${p.left}/3</b>${p.ev.length ? " · ຂ່າວ: " + p.ev.map(e => esc(e.title) + " " + esc(fmtLocal(e.timeUTC))).join(", ") : ""}${p.m.closed ? " · ຕະຫຼາດປິດ: ແຜນນີ້ສຳລັບມື້ເປີດຕໍ່ໄປ" : ""}</div>
     <div class="acts"><button class="btn" id="planSpeak">ໃຫ້ AURUM ອ່ານແຜນ</button><button class="btn pri" id="planTicket">ເປີດໃບສັ່ງເທຣດ</button></div>`;
   $("planTicket").onclick = openTicket;
@@ -3007,7 +3010,8 @@ function deskData(){
   const m = marketInfo(), g = guardState(), ev = nextHighEvent(), B = basisOff();
   let v = null; try{ v = systemView(); }catch(_){}
   const d = st.live.daily, lt = st.ticks[st.ticks.length-1], pxF = lt && Date.now()/1000 - lt[0] < 300 ? lt[1] : curPrice(), px = isFinite(pxF) ? toMT5(pxF) : NaN;
-  const all15 = tickCandles(900), nowSec = Date.now() / 1000;
+  const i15 = st.live.intra && st.live.intra["15m"], nowSec = Date.now() / 1000;
+  const all15 = i15 && i15.length > 30 ? i15.map(a => ({t:a[0], o:a[1], h:a[2], l:a[3], c:a[4], n:15})) : tickCandles(900);
   const closed15 = all15.filter(c => c.t + 900 <= nowSec && c.n >= 3);   // skip candles with too few polls
   const C = closed15.map(c => c.c), E = ema(C, 20), A = atr(closed15, 14), n = C.length - 1;
   const e20 = n >= 19 ? E[n] : NaN, a15 = n >= 14 ? A[n] : NaN, r = rsiCalc(C, 14);
@@ -3030,7 +3034,7 @@ function deskData(){
     {k:"ທິດທາງ D1", pts: dir ? 25 : 0, max:25, d: dir ? (dir > 0 ? "ຂາຂຶ້ນ: ຊອກ BUY" : "ຂາລົງ: ຊອກ SELL") : "ບໍ່ຊັດ: ບໍ່ເທຣດ"},
     {k:"ລາຄາຢູ່ໃນໂຊນ", pts: inZone ? 20 : 0, max:20, d: v && v.zone ? `ໂຊນ ${toMT5(v.zone[0]).toFixed(0)}–${toMT5(v.zone[1]).toFixed(0)}${isFinite(px) ? " · ຕອນນີ້ " + px.toFixed(1) : ""}` : "—"},
     {k:"ສັນຍານ M15", pts: trig ? 25 : 0, max:25, d: n < 21 ? `ກຳລັງເກັບຂໍ້ມູນ M15: ${Math.max(0, n+1)}/22 ແທ່ງ (ເປີດແອັບໄວ້ຂະນະຕະຫຼາດເປີດ)` : trig ? `ແທ່ງ M15 ປິດ${dir > 0 ? "ເໜືອ" : "ລຸ່ມ"} EMA20 (${toMT5(e20).toFixed(1)})` : `ລໍແທ່ງ M15 ປິດ${dir > 0 ? "ກັບຂຶ້ນເໜືອ" : dir < 0 ? "ກັບລົງລຸ່ມ" : "ຂ້າມ"} EMA20${isFinite(e20) ? " " + toMT5(e20).toFixed(1) : ""}`},
-    {k:"SL ພໍດີກັບທຶນ", pts: isFinite(slDist) && slDist <= slCap ? 10 : 0, max:10, d: isFinite(slDist) ? `SL ~$${slDist.toFixed(1)} (ສູງສຸດ $${slCap.toFixed(1)})` : `ATR H1 ~$${isFinite(h1Atr) ? h1Atr.toFixed(0) : "—"}`},
+    {k:"SL ບໍ່ກວ້າງເກີນ", pts: isFinite(slDist) && slDist <= slCap ? 10 : 0, max:10, d: isFinite(slDist) ? `SL ~$${slDist.toFixed(1)} (ສູງສຸດ $${slCap.toFixed(1)})` : `ATR H1 ~$${isFinite(h1Atr) ? h1Atr.toFixed(0) : "—"}`},
     {k:"ຊ່ວງເວລາ", pts: !m.closed && m.hot ? 10 : 0, max:10, d: m.closed ? "ຕະຫຼາດປິດ" : m.hot ? "London / New York" : "ນອກຊ່ວງແຮງ"},
     {k:"ຂ່າວ", pts: !newsSoon && !newsNear ? 10 : 0, max:10, d: ev ? `${ev.title} · ${fmtLocal(ev.timeUTC)}` : "ບໍ່ມີຂ່າວແຮງໃກ້"},
   ];
@@ -3050,7 +3054,7 @@ function renderDesk(){
       <div style="flex:1"><div class="verdict ${cls}" style="margin:0"><b>${lbl}${k.dir && k.status !== "no" ? (k.dir > 0 ? " · BUY" : " · SELL") : ""}</b>${esc(k.block || (k.status === "go" ? "ທຸກເງື່ອນໄຂຫຼັກຄົບ. ກົດປຸ່ມລຸ່ມນີ້ເພື່ອກວດ 12 ຂໍ້ກ່ອນເຂົ້າ." : k.status === "ready" ? "ໃກ້ແລ້ວ: ລໍສັນຍານ M15. ຢ່າເຂົ້າກ່ອນ." : "ຍັງບໍ່ມີ setup. ການລໍແມ່ນສ່ວນໜຶ່ງຂອງແຜນ."))}</div></div></div>
     <div class="dparts">${k.parts.map(p => `<div class="dp ${p.pts ? "ok" : "no"}"><span>${p.pts ? "✓" : "·"}</span><div><b>${esc(p.k)}</b> <span class="small">${p.pts}/${p.max}</span><div class="small">${esc(p.d)}</div></div></div>`).join("")}</div>
     <div class="lv" style="margin-top:8px">${isFinite(k.e20) ? `<span>EMA20 M15 ${toMT5(k.e20).toFixed(1)}</span>` : ""}${isFinite(k.r) ? `<span class="${k.r > 70 ? "r" : k.r < 30 ? "s" : ""}">RSI M15 ${k.r.toFixed(0)}${k.r > 70 ? " ຊື້ເກີນ" : k.r < 30 ? " ຂາຍເກີນ" : ""}</span>` : ""}${isFinite(k.vol) ? `<span class="${k.vol > 1.6 ? "r" : ""}">ຄວາມແຮງ ${(k.vol*100).toFixed(0)}%${k.vol > 1.6 ? " ຜັນຜວນສູງ" : k.vol < 0.5 ? " ຕະຫຼາດງຽບ" : ""}</span>` : ""}<span>ຂໍ້ມູນ M15 ${k.n15} ແທ່ງ</span></div>
-    ${isFinite(k.sl) && k.status !== "no" ? `<div class="small" style="margin-top:8px">ແຜນໄມ້ນີ້ (MT5): ${k.dir > 0 ? "BUY" : "SELL"} ~${k.px.toFixed(1)} · SL ${k.sl.toFixed(1)} · TP ${k.tp.toFixed(1)} (1.5R) · 0.01 lot · ປິດພາຍໃນ 6 ຊົ່ວໂມງ</div>` : ""}
+    ${isFinite(k.sl) && k.status !== "no" ? `<div class="small" style="margin-top:8px">ແຜນໄມ້ນີ້ (MT5): ${k.dir > 0 ? "BUY" : "SELL"} ~${k.px.toFixed(1)} · SL ${k.sl.toFixed(1)} · TP ${k.tp.toFixed(1)} (1.5R) · ປິດພາຍໃນ 6 ຊົ່ວໂມງ</div>` : ""}
     <canvas id="deskCv" class="eq" style="height:90px;margin-top:8px" aria-label="ກຣາຟ M15"></canvas>
     <div class="acts" style="margin-top:8px"><button class="btn pri" id="deskTicket">${k.status === "go" ? "ເປີດໃບສັ່ງເທຣດ (ໃສ່ຄ່າໃຫ້ແລ້ວ)" : "ເປີດໃບສັ່ງເທຣດ"}</button><button class="btn" id="deskAsk">ຖາມ AURUM ກ່ຽວກັບຕອນນີ້</button></div>
     <div class="small" style="margin-top:6px">ສັນຍານ M15 ສ້າງຈາກລາຄາສົດທີ່ແອັບດຶງທຸກນາທີ ຂະນະເປີດແອັບ. ຍັງບໍ່ໄດ້ backtest ແບບ M15: ບັນທຶກທຸກໄມ້ເພື່ອວັດຜົນ.</div>`;
@@ -3064,7 +3068,7 @@ function renderDesk(){
   const key = k.status + (k.dir || 0);
   if (deskPrev && key !== deskPrev && k.status === "go"){
     const msg = `ສັນຍານເທຣດສັ້ນ ${k.dir > 0 ? "BUY" : "SELL"}: ຄະແນນ ${k.score}. ກວດໃບສັ່ງເທຣດກ່ອນເຂົ້າ.`;
-    st.alerts = [...(st.alerts||[]), {time: new Date().toISOString(), level:"opportunity", titleLao: msg, bodyLao: isFinite(k.sl) ? `SL ${k.sl.toFixed(1)} · TP ${k.tp.toFixed(1)} · 0.01 lot · ປິດພາຍໃນ 6 ຊົ່ວໂມງ` : "", speechThai: `สัญญาณเทรดสั้น ${k.dir > 0 ? "ซื้อ" : "ขาย"} ตรวจใบสั่งเทรดก่อนเข้า`}];
+    st.alerts = [...(st.alerts||[]), {time: new Date().toISOString(), level:"opportunity", titleLao: msg, bodyLao: isFinite(k.sl) ? `SL ${k.sl.toFixed(1)} · TP ${k.tp.toFixed(1)} · ປິດພາຍໃນ 6 ຊົ່ວໂມງ` : "", speechThai: `สัญญาณเทรดสั้น ${k.dir > 0 ? "ซื้อ" : "ขาย"} ตรวจใบสั่งเทรดก่อนเข้า`}];
     safe(renderAlerts,"alerts"); $("coreSt").textContent = msg;
     if (ttsOn && hasTTS){ const pv = pickVoice(); if (pv) sayNow(pv.kind === "lo" ? msg : `สัญญาณเทรดสั้น ${k.dir > 0 ? "ซื้อ" : "ขาย"} ครับ ตรวจใบสั่งเทรดก่อนเข้า`, pv.kind); }
   }
@@ -3170,7 +3174,7 @@ function renderCStats(){
     ["ກວດກົດ", cstat.checks || 0, ""],
     ["ວິເຄາະ", (cstat.analyses || 0) + (cstat.talks || 0), ""],
     ["ໄມ້ມື້ນີ້", `${t.count}/3`, t.count >= 3 ? "down" : ""],
-    ["P/L ມື້ນີ້", usd(t.pnl), t.pnl > 0 ? "up" : t.pnl < 0 ? "down" : ""],
+    ["ລາຄາ MT5", isFinite(mt5Now()) ? mt5Now().toFixed(1) : "—", ""],
   ];
   el.innerHTML = cells.map(([a,b,c]) => `<div class="cs"><div class="k">${a}</div><div class="v num ${c}">${esc(String(b))}</div></div>`).join("");
   const ks = $("cmdKill"); if (ks){ ks.classList.toggle("on", !g.lock); $("cmdKillTxt").textContent = g.lock ? "ລັອກຢູ່: " + g.title : "ເທຣດໄດ້ (ກົດເພື່ອພັກ)"; }
@@ -3421,6 +3425,32 @@ send = async function(){
   return _send10.apply(this, arguments);
 };
 renderAgentBtn();
+
+
+/* ================= v11: multi-timeframe spot data for the analysts; every trade question gets the full team ================= */
+function tfSummary(rows, name){
+  if (!rows || rows.length < 30) return null;
+  const B = basisOff(), bars = rows.map(a => Array.isArray(a) ? {t:a[0]*1000, o:a[1]-B, h:a[2]-B, l:a[3]-B, c:a[4]-B} : {...a, o:a.o-B, h:a.h-B, l:a.l-B, c:a.c-B});
+  const C = bars.map(b => b.c), n = C.length - 1, e20 = ema(C,20), e50 = ema(C,50), e200 = ema(C,200), A = atr(bars, 14), r = rsiCalc(C, 14);
+  const last30 = bars.slice(-30), f = x => isFinite(x) ? +x.toFixed(2) : null;
+  const trend = isFinite(e200[n]) && n >= 200 ? (e50[n] > e200[n] && C[n] > e200[n] ? "up" : e50[n] < e200[n] && C[n] < e200[n] ? "down" : "mixed") : (e20[n] > e50[n] ? "up-short" : "down-short");
+  return {tf: name, close: f(C[n]), ema20: f(e20[n]), ema50: f(e50[n]), ema200: n >= 200 ? f(e200[n]) : null, rsi14: f(r), atr14: f(A[n]), trend,
+    swing_high_30: f(Math.max(...last30.map(b => b.h))), swing_low_30: f(Math.min(...last30.map(b => b.l))),
+    last_candles: bars.slice(-6).map(b => [new Date(b.t).toISOString().slice(5,16).replace("T"," "), f(b.o), f(b.h), f(b.l), f(b.c)])};
+}
+function mtfContext(){
+  const I = st.live.intra || {};
+  return {prices: "MT5 XAUUSD prices (spot)", source: I.source || (st.live.intra ? "spot" : "FMP futures converted to MT5"),
+    m15: tfSummary(I["15m"], "M15"), h1: tfSummary(I["1h"], "H1"), h4: tfSummary(I["4h"], "H4"), d1: tfSummary(st.live.bars, "D1"),
+    bid_ask: I.spot ? {bid: I.spot.bid, ask: I.spot.ask} : null};
+}
+const TRADE_Q = /buy|sell|ເຂົ້າ|ເຊວ|ບາຍ|ຂາຍ|ຊື້|ສັນຍານ|signal|ວິເຄາະ|ຂຶ້ນ|ລົງ|ເທຣດ|entry|ທອງ|gold|xau|ซื้อ|ขาย|เข้า|วิเคราะห์|ขึ้น|ลง|เทรด|ทอง/i;
+const _send11 = send;
+send = async function(){
+  const q = $("q").value.trim();
+  if (q && !st.busy && talkMode && !st.img && TRADE_Q.test(q)) forceFull = true;
+  return _send11.apply(this, arguments);
+};
 
 /* ---------- render all ---------- */
 function safe(fn, name){ try{ fn(); }catch(e){ console.error("render " + name, e); try{ (window.__errs = window.__errs || []).push({t: Date.now(), m: name + ": " + String(e && e.message || e).slice(0, 180)}); }catch(_){} } }
