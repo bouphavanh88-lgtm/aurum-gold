@@ -43,6 +43,7 @@
   /* ---- db: documents in Supabase through /api/kv, polled for changes ---- */
   const snap = (exists, data) => ({exists, data: () => data});
   function doc(path){
+    if (path === "app/basis") path = "app/basis_spot";   // spot prices need their own (tiny) MT5 offset
     return {
       async get(){ const r = await api("/api/kv?path=" + encodeURIComponent(path)); const j = await r.json(); return snap(!!j.exists, j.data); },
       async set(data){ const r = await api("/api/kv", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({path, data})}); if (!r.ok) throw {code:"db_error"}; },
@@ -66,10 +67,30 @@
   }
   const db = {doc, collection};
 
-  /* ---- mcp: the app's FMP calls go to /api/fmp ---- */
+  /* ---- spot XAUUSD (same market as MT5) from /api/xau ---- */
+  const xauCache = {};
+  async function xau(tf){
+    const h = xauCache[tf]; if (h && Date.now() - h.at < 20e3) return h.d;
+    const r = await fetch("/api/xau?tf=" + tf); if (!r.ok) throw {code:"tool_error", message:"spot " + r.status};
+    const d = await r.json(); xauCache[tf] = {at: Date.now(), d}; return d;
+  }
+  window.aurumXau = xau;
+  try{ if (!localStorage.getItem("aurum_spot_v1")){ localStorage.removeItem("gd_basis"); localStorage.removeItem("gd_ticks"); localStorage.setItem("aurum_spot_v1", "1"); } }catch(_){}
+
+  /* ---- mcp: the app's gold price calls now use spot XAUUSD (MT5 prices) ---- */
   const KIND = {"commodities-quote":"quote", "commodities-historical-price-eod-full":"eod"};
   async function callTool(server, tool, input){
     if (!/FMP/i.test(server) || tool !== "commodity" || !KIND[input.endpoint]) throw {code:"tool_error", message:"not available in the standalone app"};
+    try{
+      if (input.endpoint === "commodities-quote"){
+        const [h, d] = await Promise.all([xau("1h"), xau("1d")]);
+        const c = d.candles, prev = c.length > 1 ? c[c.length - 2][4] : NaN, today = c[c.length - 1] || [], px = h.spot.mid;
+        return {payload:[{symbol:"XAUUSD", name:"Gold spot (MT5)", price:+px.toFixed(2), bid:h.spot.bid, ask:h.spot.ask, change:+(px - prev).toFixed(2), changePercentage: isFinite(prev) ? +((px - prev) / prev * 100).toFixed(3) : 0, dayLow: Math.min(today[3] || px, px), dayHigh: Math.max(today[2] || px, px), open: today[1], previousClose: prev, timestamp: Math.floor((h.spot.at || Date.now()) / 1000), source: h.spot.source}], cache:{storedAt: Date.now()}};
+      }
+      const d = await xau("1d");
+      const iso = t => new Date((t + d.serverOffsetH * 3600) * 1000).toISOString().slice(0, 10);
+      return {payload: d.candles.map(([t, o, h, l, c]) => ({date: iso(t), open:o, high:h, low:l, close:c})).reverse(), cache:{storedAt: Date.now()}};
+    }catch(e){ /* fall back to FMP futures below */ }
     const qs = new URLSearchParams({kind: KIND[input.endpoint], symbol: input.symbol || "GCUSD"});
     if (input.from_date) qs.set("from", input.from_date); if (input.to_date) qs.set("to", input.to_date);
     const r = await api("/api/fmp?" + qs);

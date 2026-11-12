@@ -90,3 +90,25 @@
   }catch(_){}
   if (!localStorage.getItem("aurum_pass")) setTimeout(open, 400);
 })();
+/* ---- spot XAUUSD timeframes like MT5: M15 / H1 / H4 (plus D1, W1, live line) ---- */
+(function(){
+  try{
+    st.live.intra = st.live.intra || {};
+    const seg = document.getElementById("chTF");
+    if (seg){
+      [["15m","M15"],["1h","H1"],["4h","H4"]].reverse().forEach(([tf, lbl]) => { const b = document.createElement("button"); b.dataset.tf = tf; b.textContent = lbl; b.setAttribute("aria-pressed", "false"); seg.insertBefore(b, seg.firstChild); });
+    }
+    async function loadIntra(tf){
+      try{
+        const d = await aurumXau(tf);
+        st.live.intra[tf] = d.candles; st.live.intra.spot = d.spot; st.live.intra.source = d.source;
+        if (chTF === tf) renderChart();
+        if (tf === "15m") safe(renderDesk, "desk");
+      }catch(_){}
+    }
+    const every = {"15m": 60e3, "1h": 120e3, "4h": 300e3};
+    Object.keys(every).forEach(tf => { loadIntra(tf); setInterval(() => { if (!document.hidden) loadIntra(tf); }, every[tf]); });
+    setTimeout(() => { const b = seg && seg.querySelector('[data-tf="1h"]'); if (b) b.click(); }, 400);
+    const src = document.getElementById("chSrc"); if (src) setInterval(() => { if (st.live.intra.source) src.textContent = "XAUUSD spot (ລາຄາແບບ MT5) · ເວລາລາວ"; }, 5000);
+  }catch(e){ console.error("intra", e); }
+})();
