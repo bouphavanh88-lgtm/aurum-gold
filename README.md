@@ -8,5 +8,7 @@ Personal gold-trading assistant for ATEE. Static app in `public/`, serverless AP
 - `api/setup.js` – stores API keys server-side
 - `api/push.js` – Web Push notifications
 
+Database setup: run `supabase/schema.sql` in the Supabase SQL editor, then insert the token (see the comment at the top of that file).
+
 Env vars (Vercel): AURUM_PASSCODE, AURUM_DB_TOKEN, SUPABASE_URL, SUPABASE_KEY, VAPID_PUBLIC, VAPID_PRIVATE (+ optional ANTHROPIC_API_KEY, GEMINI_API_KEY, FMP_API_KEY, GEMINI_MODEL).
 Analysis, not financial advice.
